@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>マネタイズ講座 FAQボット</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', -apple-system, sans-serif;
+    background: #f5f4f0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: #37352f;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #2D3436, #434a4e);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+  .header-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .header-title { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 0.3px; }
+  .header-sub { color: rgba(255,255,255,0.6); font-size: 10.5px; margin-top: 1px; }
+
+  /* Messages area */
+  .messages {
+    flex: 1; overflow-y: auto; padding: 14px 10px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-thumb { background: #d0cec8; border-radius: 3px; }
+
+  /* Message bubbles */
+  .msg-row { display: flex; gap: 7px; align-items: flex-start; }
+  .msg-row.user { justify-content: flex-end; }
+  .msg-row.bot .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(135deg, #2D3436, #636e72);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .msg-content { max-width: 82%; display: flex; flex-direction: column; gap: 7px; }
+  .bubble {
+    padding: 10px 14px; font-size: 13px; line-height: 1.8;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .bubble.user {
+    background: #2D3436; color: #fff;
+    border-radius: 16px 16px 3px 16px;
+    max-width: 78%; margin-left: auto;
+  }
+  .bubble.bot {
+    background: #fff; color: #37352f;
+    border-radius: 3px 16px 16px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Category buttons */
+  .categories { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cat-btn {
+    background: #fff; border: 1px solid #e0ddd8; border-radius: 18px;
+    padding: 6px 12px; font-size: 12px; color: #37352f;
+    cursor: pointer; display: flex; align-items: center; gap: 4px;
+    transition: all 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    font-family: inherit;
+  }
+  .cat-btn:hover { background: #f0efeb; border-color: #c8c5bf; }
+
+  /* Suggestion buttons */
+  .suggestions { display: flex; flex-direction: column; gap: 3px; }
+  .sug-label { font-size: 10.5px; color: #9b9b9b; margin-top: 3px; margin-bottom: 1px; }
+  .sug-btn {
+    background: #fff; border: 1px solid #e8e6e1; border-radius: 10px;
+    padding: 8px 12px; font-size: 12px; color: #555;
+    cursor: pointer; text-align: left; transition: all 0.15s;
+    line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    font-family: inherit;
+  }
+  .sug-btn:hover { background: #f7f6f3; border-color: #d0cec8; }
+
+  /* Typing indicator */
+  .typing { display: flex; gap: 4px; padding: 10px 16px; }
+  .typing .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #b0ada6; animation: bounce 1.2s infinite;
+  }
+  .typing .dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing .dot:nth-child(3) { animation-delay: 0.3s; }
+
+  /* Input area */
+  .input-area {
+    padding: 10px 10px 14px; background: #fff;
+    border-top: 1px solid #eae8e4;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+    display: flex; gap: 7px; align-items: center; flex-shrink: 0;
+  }
+  .input-area input {
+    flex: 1; padding: 10px 14px; border-radius: 22px;
+    border: 1px solid #ddd9d3; font-size: 13.5px;
+    outline: none; background: #fafaf8; color: #37352f;
+    transition: border-color 0.2s; font-family: inherit;
+  }
+  .input-area input:focus { border-color: #a0a0a0; }
+  .input-area input::placeholder { color: #b0ada6; }
+  .send-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: none;
+    background: #d0cec8; color: #fff; font-size: 16px;
+    cursor: default; display: flex; align-items: center;
+    justify-content: center; transition: background 0.2s;
+    flex-shrink: 0; font-family: inherit;
+  }
+  .send-btn.active { background: #2D3436; cursor: pointer; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">💬</div>
+  <div>
+    <div class="header-title">マネタイズ講座 FAQボット</div>
+    <div class="header-sub">マネタイズ講座に関するご質問にお答えします</div>
+  </div>
+</div>
+
+<div class="messages" id="messages"></div>
+
+<div class="input-area">
+  <input id="input" placeholder="質問を入力してください..." autocomplete="off">
+  <button class="send-btn" id="sendBtn" onclick="handleSend()">↑</button>
+</div>
+
+<script>
+// ─── QA DATA (この部分を編集してQAを追加・変更できます) ───
+const CATEGORY_ICONS = {"退会・解約":"🚪","料金・支払い":"💰","サービス内容":"📚","契約・規約":"📝"};
+
+const QA_DATABASE = [
+  {id:1,category:"退会・解約",keywords:["退会","解約","やめたい","辞めたい","退会方法","解約方法","退会したい"],question:"退会（解約）するにはどうすればいいですか？",answer:"コースによって退会ルールが異なります。\n\n【ライトコース】\n最低利用期間は利用開始日から6か月間です。この期間中は解約できません。6か月経過後、契約期間満了前に所定の解約手続きを行ってください。手続きがない場合、同条件で1か月ごとに自動更新されます。\n\n【エリートコース】\n契約期間は契約締結日から1年間です。契約期間中の途中解約はできません。\n\n詳しくは「退会ルールについて」のページをご確認ください。"},
+  {id:2,category:"退会・解約",keywords:["最低利用期間","最低","期間","いつから","何ヶ月","何か月","6ヶ月","6か月"],question:"最低利用期間はありますか？",answer:"はい、各コースに最低利用期間があります。\n\n・ライトコース：利用開始日から6か月間\n・エリートコース：契約締結日から1年間\n\nこの期間中は解約（退会）ができませんので、ご了承ください。"},
+  {id:3,category:"退会・解約",keywords:["返金","返金して","お金返して","返して","払い戻し"],question:"返金はできますか？",answer:"原則として、理由を問わずお支払い済みの受講料の返金・減額は行っておりません。\n\nエリートコースのクーリング・オフ期間（契約書受領日から8日以内）に限り、全額返金が可能です。"},
+  {id:4,category:"退会・解約",keywords:["クーリングオフ","クーリング・オフ","8日","クーリング"],question:"クーリング・オフはできますか？",answer:"エリートコースのみ、クーリング・オフが可能です。\n\n契約書を受け取った日から8日以内であれば、書面またはSnsClub運営公式LINEへの通知によりクーリング・オフができます。\n\nこの場合、違約金は発生せず、お支払い済みの料金は全額返金されます。\n\n※ライトコースにはクーリング・オフの規定はありません。"},
+  {id:5,category:"料金・支払い",keywords:["料金","月額","いくら","値段","価格","受講料","費用"],question:"受講料はいくらですか？",answer:"各コースの受講料は以下の通りです。\n\n・ライトコース：月額10,000円（税別）\n・エリートコース：月額33,000円（税込）＋レベニューシェア報酬\n\nお支払い方法はクレジットカード決済です。"},
+  {id:6,category:"料金・支払い",keywords:["レベニューシェア","レベシェア","計算","計算式","報酬","利益","30%"],question:"レベニューシェア報酬の計算方法を教えてください",answer:"エリートコースのレベニューシェア報酬は、以下の計算式で算出されます。\n\n【計算式】\n（当月の対象利益 − 基準利益）× 30% − 受講料月額（税込）\n\n・対象利益：Instagram・TikTok Shop経由の売上から対象経費を引いた金額\n・基準利益：契約締結月の前3か月間における対象利益の月間平均額\n・受講料月額：33,000円（税込）\n\n※計算結果がマイナスの場合、レベニューシェア報酬は0円です。\n\n【具体例】\n基準利益10万円、当月の対象利益35万円の場合：\n① 増加分：350,000 − 100,000 ＝ 250,000円\n② レベシェア：250,000 × 30% ＝ 75,000円\n③ 受講料差引：75,000 − 33,000 ＝ 42,000円"},
+  {id:7,category:"料金・支払い",keywords:["経費","対象経費","材料費","送料","手数料","外注","外注費"],question:"対象経費にはどんなものが含まれますか？",answer:"対象経費は以下の4カテゴリです（対象売上に直接対応するものに限ります）。\n\n【1. 仕入原価・材料費】\n布・糸・金具・ビーズ等の材料費、工作用品（ハンドメイド用）、包装材料\n\n【2. 配送・梱包関連費用】\n宅配便送料、郵送料、梱包資材費\n\n【3. 販売プラットフォーム手数料】\nMOSH・BASE・Shopify等の手数料、クレジットカード決済手数料\n\n【4. コンテンツ制作外注費】\n動画編集の外注費、デザイン制作の外注費、その他コンテンツ制作にかかる外注費\n\n上記に加え、LINEなど配信ツールの月額費用、広告費、人件費、交通費・宿泊費なども経費として認められます。\n\n※上記以外の費目も、運営との協議の上で追加できます。\n※「発信内容を学ぶための学習費」は基本的に対象外ですが、売上に直接関連する場合は個別相談可能です。"},
+  {id:8,category:"料金・支払い",keywords:["報告","提出","売上報告","毎月","5日","15日","請求"],question:"売上の報告はいつまでにすればいいですか？",answer:"毎月5日までに、前月分の対象売上および対象経費の金額、それらの内訳が確認できる資料を所定の方法でご提出ください。\n\n資料の例：管理画面のスクリーンショット、取引履歴、領収書、請求書など\n\n報告をもとに運営側で報酬額を算出し、毎月15日までに請求書を発行します。お支払いは請求書発行月の末日までに、指定の銀行口座へお振込みください。"},
+  {id:15,category:"料金・支払い",keywords:["売上","対象売上","含まれる","対象","Instagram","TikTok","tiktok","運用代行","講師業","YouTube","youtube"],question:"レベニューシェアの対象になる売上の範囲は？",answer:"対象売上に含まれるもの・含まれないものは以下の通りです。\n\n【対象に含まれる】\n・コンサルを受けているInstagramアカウントからの収益\n・別のInstagramアカウントでもInstagram運用に起因する収益\n・TikTok Shopを通じた商品販売売上\n・SNS運用代行による売上\n\n【対象に含まれない】\n・SNS講師業としていただく報酬\n・SnsClubからの報酬\n・受講前から既に受注していた案件\n・YouTube等、Instagram・TikTok Shop以外のSNSによる再生回数収入\n\n※対象外の売上であっても、売上報告時には記載とエビデンスの提出をお願いしています。"},
+  {id:16,category:"料金・支払い",keywords:["月額だけ","月額のみ","支払額","月額以下","レベシェア0","レベニューシェア0"],question:"レベニューシェアが月額以下の場合はどうなりますか？",answer:"レベニューシェアの計算結果が月額以下（マイナスまたは0円）の場合は、月額受講料（33,000円税込）のみのお支払いとなります。\n\nつまり、月額は毎月お支払いいただく前提で、計算式の中で差し引かれている形です。"},
+  {id:17,category:"料金・支払い",keywords:["対象売上","追加","新しいサービス","新サービス","自動的","範囲変更"],question:"契約後に追加されたサービスも対象売上に含まれますか？",answer:"講義内容として新たに追加されたマネタイズ手法やビジネス内容については、内容によってはレベニューシェアの対象となる場合があります。\n\nそのため、契約締結時点で記載されている内容のみに限定されるものではなく、講座内で扱うマネタイズ領域の拡張に伴い対象となる可能性があります。\n\n不明な場合は運営までご相談ください。"},
+  {id:18,category:"料金・支払い",keywords:["経費","交通費","宿泊費","レンタル","広告費","人件費","LINE","月額費用","配信","テキスト","印刷"],question:"経費として認められる具体的な項目を教えてください",answer:"契約書に定められた4カテゴリに加え、以下のような費用も経費として認められます。\n\n【経費として認められる例】\n・テキスト（用紙代、印刷代）\n・商品製造に必要なパーツ・材料・工具等\n・包装材料\n・宅急便送料\n・対面の場合の交通費、宿泊費、講座場所のレンタル代\n・LINEやメッセージ配信などの月額費用\n・広告費、外注費、人件費\n・動画編集・デザイン制作等の外注費\n\n【経費として認められない場合が多いもの】\n・発信内容について学ぶための学習費（本代・セミナー代等）\n→ ただし売上に直接関連する用途の場合、個別確認のうえ判断する場合もあります\n\n不明な費目がある場合は運営までご相談ください。"},
+  {id:19,category:"料金・支払い",keywords:["エビデンス","証拠","スクショ","スクリーンショット","領収書","提出方法","報告方法"],question:"売上・経費の報告にはどんな資料が必要ですか？",answer:"【売上の報告資料】\n・振込が確認できるスクリーンショット\n・ASPの管理画面のスクリーンショット\nなど、売上内容が確認できる資料をご提出ください。\n\n【経費の報告資料】\n領収書の提出は義務ではありません。金額および内容が確認できる資料であれば問題ございません。\n\n毎月5日までに前月分の資料を所定の方法でご提出をお願いします。"},
+  {id:9,category:"サービス内容",keywords:["グルコン","グループコンサル","コンサル","月何回","回数"],question:"グループコンサルティングは月何回ですか？",answer:"グループコンサルティングは月8回程度実施しています（両コース共通）。\n\n日時は運営が別途定めます。受講生の都合により欠席された場合でも、日程の変更・振替・受講料の返金は行いませんのでご了承ください。"},
+  {id:10,category:"サービス内容",keywords:["1on1","ワンオンワン","個別","面談","60分"],question:"1on1はどのように実施されますか？",answer:"エリートコースでは、講師との1on1を月2回（各60分）受けることができます。\n\n・オンラインセッション形式\n・日程調整は所定の方法で行います\n・日程変更は実施予定日の前日21:00までに講師へご連絡ください\n・開始予定時刻から15分以上遅れた場合は欠席扱いとなり、1回分が消化されます\n・アーカイブ動画は他の受講生も視聴可能です\n\n※ライトコースには1on1はありませんが、講師との1on1動画のアーカイブ視聴が可能です。"},
+  {id:11,category:"サービス内容",keywords:["講師","担当","変更","指名","選べる"],question:"担当講師は選べますか？",answer:"担当講師は運営側で選定いたします。受講生からの講師の指定・変更はできませんので、ご了承ください。"},
+  {id:20,category:"サービス内容",keywords:["相談","コンサル範囲","TikTok相談","運用代行相談","別アカウント相談"],question:"レベニュー対象のビジネスについてもコンサルで相談できますか？",answer:"運用代行やTikTok Shopにつきましては、現在講義内容にも含まれているため、1on1やグルコンでご相談いただけます。\n\nただし、講師ごとに得意分野や経験領域が異なるため、専任講師が該当分野の経験を有していない場合は、グループコンサルティングの場でご質問いただくことを推奨しております。"},
+  {id:12,category:"契約・規約",keywords:["自動更新","更新","契約更新"],question:"契約は自動更新されますか？",answer:"コースによって異なります。\n\n・ライトコース：1か月単位で自動更新されます。解約手続きがない限り、同条件で継続されます。\n・エリートコース：契約期間は1年間で、自動更新はありません。"},
+  {id:13,category:"契約・規約",keywords:["中途解約","途中解約","違約金","ペナルティ","残存"],question:"中途解約するとどうなりますか？",answer:"【ライトコース】\n最低利用期間（6か月）中は解約できません。6か月経過後は、所定の手続きで解約可能です。\n\n【エリートコース】\n契約期間（1年間）中の途中解約はできません。受講生側の事由により契約が期間満了前に終了した場合、以下をお支払いいただきます。\n・残存期間分の受講料の合計額\n・残存期間月数 × 契約期間中のレベニューシェア報酬月平均額"},
+  {id:14,category:"契約・規約",keywords:["契約終了後","終了後","満了後","対象期間","報告義務"],question:"契約終了後もレベニューシェアの報告は必要ですか？",answer:"はい、エリートコースの場合、契約期間終了後も対象期間にかかるレベニューシェア報酬の報告・支払義務が継続します。\n\n例えば、2025年12月1日に契約締結の場合：\n・契約期間：2025年12月1日〜2026年11月30日（1年間）\n・対象期間：2026年1月〜2026年12月（契約締結月の翌月〜満了月の翌月）\n\n契約は2026年11月末で満了しますが、2026年12月分の報告・支払まで必要です。\n\nこれは、入会直後の1か月目は講師サポートの影響がまだ反映されない期間と考えられるため、入会後2か月目から13か月目までを対象期間としているためです。"},
+  {id:21,category:"契約・規約",keywords:["宣伝","広告","情報利用","個人情報","本名","プライバシー","使われる"],question:"自分の投稿や情報が宣伝に使われることはありますか？",answer:"契約書の規定上、本サービスの宣伝広告目的において、アカウント・投稿・成果等の情報を使用させていただく場合がございます。\n\nただし運用上は、以下の形で対応しています。\n・基本的にSNS上で既に公開されている投稿・情報を使用\n・本名や個人情報、非公開情報を含む場合は事前に確認のうえ使用\n\nご懸念の点については配慮させていただきますのでご安心ください。"},
+  {id:22,category:"契約・規約",keywords:["講師業","コンサル業","教材","転載","知的財産","著作権","講座提供","ノウハウ"],question:"講座で得た知識をもとにSNS講師業やコンサル業を行ってもいいですか？",answer:"講座で得た知識や経験をもとに、以下のような活動を行っていただくこと自体は問題ございません。\n・SNS講師業\n・SNSコンサル業\n・SNS運用代行\n\nただし、講座の教材・コンテンツをそのまま使用したり、内容を転載する形での講座提供等はご遠慮ください。\n\n講座内で提供している教材やコンテンツの著作権は運営側に帰属しており、それらを転載・配布・販売することは禁止されています。"},
+  {id:23,category:"契約・規約",keywords:["自動更新","満了","終了","更新なし","1年後","契約後","エリート満了"],question:"エリートコースの契約満了後はどうなりますか？",answer:"エリートコースの契約には自動更新の定めはないため、契約期間（1年間）満了後は原則として契約は終了となります。\n\nただし、契約期間中の対象期間に該当する売上については、契約満了後もレベニューシェア報酬の報告・支払い義務が発生する場合がございます。\n\n例：2025年12月1日契約の場合、契約は2026年11月末で満了しますが、2026年12月分の報告・支払まで必要です。"},
+];
+
+// ─── Engine ───
+const categories = [...new Set(QA_DATABASE.map(q => q.category))];
+
+function findBestMatch(input) {
+  const n = input.toLowerCase().replace(/[？?！!。、\s]+/g, "");
+  let best = null, bestScore = 0;
+  for (const qa of QA_DATABASE) {
+    let score = 0;
+    for (const kw of qa.keywords) {
+      if (n.includes(kw.toLowerCase())) score += kw.length;
+    }
+    if (score > bestScore) { bestScore = score; best = qa; }
+  }
+  return bestScore >= 2 ? best : null;
+}
+
+// ─── UI ───
+const $msg = document.getElementById("messages");
+const $input = document.getElementById("input");
+const $sendBtn = document.getElementById("sendBtn");
+
+$input.addEventListener("input", () => {
+  $sendBtn.classList.toggle("active", $input.value.trim().length > 0);
+});
+$input.addEventListener("keydown", e => { if (e.key === "Enter") handleSend(); });
+
+function scrollBottom() {
+  setTimeout(() => $msg.scrollTop = $msg.scrollHeight, 50);
+}
+
+function addUserMsg(text) {
+  const row = document.createElement("div");
+  row.className = "msg-row user";
+  row.innerHTML = `<div class="bubble user">${esc(text)}</div>`;
+  $msg.appendChild(row);
+  scrollBottom();
+}
+
+function addBotMsg(text, suggestions, showCats) {
+  const row = document.createElement("div");
+  row.className = "msg-row bot";
+
+  let sugHTML = "";
+  if (showCats) {
+    sugHTML = `<div class="categories">${categories.map(c =>
+      `<button class="cat-btn" onclick="handleCat('${esc(c)}')">${CATEGORY_ICONS[c]||"📌"} ${esc(c)}</button>`
+    ).join("")}</div>`;
+  }
+  if (suggestions && suggestions.length) {
+    sugHTML += `<div class="suggestions"><div class="sug-label">関連する質問</div>${suggestions.map(s =>
+      `<button class="sug-btn" onclick="handleSug(${s.id})">💬 ${esc(s.question)}</button>`
+    ).join("")}</div>`;
+  }
+
+  row.innerHTML = `<div class="avatar">🤖</div><div class="msg-content"><div class="bubble bot">${esc(text)}</div>${sugHTML}</div>`;
+  $msg.appendChild(row);
+  scrollBottom();
+}
+
+function showTyping() {
+  const el = document.createElement("div");
+  el.className = "msg-row bot"; el.id = "typing";
+  el.innerHTML = `<div class="avatar">🤖</div><div class="bubble bot typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  $msg.appendChild(el);
+  scrollBottom();
+}
+function hideTyping() {
+  const el = document.getElementById("typing");
+  if (el) el.remove();
+}
+
+function esc(s) {
+  // Preserve <a> tags, escape everything else
+  const parts = s.split(/(<a [^>]+>.*?<\/a>)/g);
+  return parts.map(p => p.startsWith("<a ") ? p : p.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>")).join("");
+}
+
+function handleSend() {
+  const text = $input.value.trim();
+  if (!text) return;
+  $input.value = ""; $sendBtn.classList.remove("active");
+  addUserMsg(text);
+
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    const match = findBestMatch(text);
+    if (match) {
+      const related = QA_DATABASE.filter(q => q.category === match.category && q.id !== match.id).slice(0, 3);
+      addBotMsg(match.answer, related, false);
+    } else {
+      addBotMsg("申し訳ありません、該当する回答が見つかりませんでした。\n以下のカテゴリから探していただくか、運営公式LINEまでお問い合わせください。\n\n<a href='https://liff.line.me/2008740332-nhely5Ge/landing?follow=%40246xinkg&lp=wGaNIL&liff_id=2008740332-nhely5Ge' target='_blank' style='color:#06C755;font-weight:700;text-decoration:none;'>📱 公式LINEはこちら</a>", null, true);
+    }
+  }, 700);
+}
+
+window.handleCat = function(cat) {
+  addUserMsg(`「${cat}」について知りたい`);
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    const items = QA_DATABASE.filter(q => q.category === cat);
+    addBotMsg(`「${cat}」に関するよくあるご質問です。\n気になる質問をタップしてください。`, items, false);
+  }, 500);
+};
+
+window.handleSug = function(id) {
+  const qa = QA_DATABASE.find(q => q.id === id);
+  if (!qa) return;
+  addUserMsg(qa.question);
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    const related = QA_DATABASE.filter(q => q.category === qa.category && q.id !== qa.id).slice(0, 3);
+    addBotMsg(qa.answer, related, false);
+  }, 500);
+};
+
+// Initial message
+addBotMsg("マネタイズ講座のFAQボットです。\nご質問を入力するか、下のカテゴリからお選びください。", null, true);
+</script>
+</body>
+</html>
